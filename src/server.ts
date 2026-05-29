@@ -3,6 +3,13 @@ import "./lib/error-capture";
 import { consumeLastCapturedError } from "./lib/error-capture";
 import { renderErrorPage } from "./lib/error-page";
 
+let lastConsoleError: string | undefined;
+const originalConsoleError = console.error;
+console.error = (...args: any[]) => {
+  lastConsoleError = args.map(a => (a instanceof Error ? a.stack : String(a))).join(" ");
+  originalConsoleError(...args);
+};
+
 type ServerEntry = {
   fetch: (request: Request, env: unknown, ctx: unknown) => Promise<Response> | Response;
 };
@@ -63,8 +70,8 @@ async function normalizeCatastrophicSsrResponse(response: Response): Promise<Res
     return response;
   }
 
-  const err = consumeLastCapturedError() ?? new Error(`h3 swallowed SSR error: ${body}`);
-  console.error(err);
+  const err = consumeLastCapturedError() ?? new Error(`h3 swallowed SSR error: ${body}\n\nLast console.error: ${lastConsoleError ?? 'None'}`);
+  originalConsoleError(err);
   return brandedErrorResponse(err);
 }
 
