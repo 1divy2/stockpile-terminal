@@ -64,10 +64,11 @@ type CandlePoint = {
   price: number;
 };
 
-function formatXAxisLabel(timestamp: number, totalPoints: number) {
+function formatXAxisLabel(timestamp: number, timeSpan: number) {
   const date = new Date(timestamp * 1000);
 
-  if (totalPoints <= 120) {
+  // If the total time span is less than 3 days, show time
+  if (timeSpan <= 3 * 24 * 60 * 60) {
     return date.toLocaleTimeString("en-US", {
       hour: "numeric",
       minute: "2-digit",
@@ -80,10 +81,10 @@ function formatXAxisLabel(timestamp: number, totalPoints: number) {
   });
 }
 
-function formatTooltipLabel(timestamp: number, totalPoints: number) {
+function formatTooltipLabel(timestamp: number, timeSpan: number) {
   const date = new Date(timestamp * 1000);
 
-  if (totalPoints <= 120) {
+  if (timeSpan <= 3 * 24 * 60 * 60) {
     return date.toLocaleString("en-US", {
       month: "short",
       day: "numeric",
@@ -111,17 +112,8 @@ export function AreaPriceChart({
 
   color?: string;
 }) {
-  const totalPoints = data.length;
-
-  const chartData = data.map((d) => ({
-    timestamp: d.timestamp,
-
-    label: formatXAxisLabel(d.timestamp, totalPoints),
-
-    fullLabel: formatTooltipLabel(d.timestamp, totalPoints),
-
-    price: d.price,
-  }));
+  const timeSpan = data.length > 1 ? data[data.length - 1].timestamp - data[0].timestamp : 0;
+  const chartData = data;
 
   const minPrice = chartData.length ? Math.min(...chartData.map((d) => d.price)) : 0;
 
@@ -152,8 +144,11 @@ export function AreaPriceChart({
           <CartesianGrid stroke="var(--color-grid-line)" strokeDasharray="2 4" vertical={false} />
 
           <XAxis
-            dataKey="label"
+            dataKey="timestamp"
+            type="number"
+            domain={['dataMin', 'dataMax']}
             minTickGap={32}
+            tickFormatter={(val) => formatXAxisLabel(val, timeSpan)}
             tick={{
               fill: "var(--color-muted-foreground)",
               fontSize: 10,
@@ -178,7 +173,7 @@ export function AreaPriceChart({
 
           <Tooltip
             formatter={(value) => [`$${Number(value).toFixed(2)}`, "Price"]}
-            labelFormatter={(_, payload) => payload?.[0]?.payload?.fullLabel || ""}
+            labelFormatter={(label) => formatTooltipLabel(Number(label), timeSpan)}
             contentStyle={{
               background: "rgba(10,14,25,0.96)",
               border: "1px solid rgba(255,255,255,0.08)",
